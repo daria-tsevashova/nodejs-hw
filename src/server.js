@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import pino from 'pino-http';
 import 'dotenv/config';
+import { connectMongoDB } from './db/connectMongoDB.js';
 
 const app = express();
 const PORT = process.env.PORT ?? 3000;
@@ -61,6 +62,9 @@ app.use((err, req, res, next) => {
       : err.message,
   });
 });
+
+// підключення до MongoDB
+await connectMongoDB();
 
 // Запуск сервера
 app.listen(PORT, () => {
