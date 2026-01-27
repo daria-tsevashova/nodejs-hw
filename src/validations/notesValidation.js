@@ -1,0 +1,3 @@
+const getAllNotesSchema = {};
+
+export { getAllNotesSchema };
