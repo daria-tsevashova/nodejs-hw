@@ -1,0 +1,3 @@
+const tags = [];
+
+export { tags };
