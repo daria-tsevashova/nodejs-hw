@@ -1,4 +1,5 @@
 import { Segments, Joi } from 'celebrate';
+import { isValidObjectId } from 'mongoose';
 import { TAGS } from '../constants/tags.js';
 
 export const getAllNotesSchema = {
@@ -12,7 +13,14 @@ export const getAllNotesSchema = {
 
 export const noteIdSchema = {
   [Segments.PARAMS]: Joi.object({
-    noteId: Joi.string().hex().length(24).required(),
+    noteId: Joi.string()
+      .required()
+      .custom((value, helpers) => {
+        if (!isValidObjectId(value)) {
+          return helpers.error('any.invalid');
+        }
+        return value;
+      }),
   }),
 };
 
@@ -26,7 +34,14 @@ export const createNoteSchema = {
 
 export const updateNoteSchema = {
   [Segments.PARAMS]: Joi.object({
-    noteId: Joi.string().hex().length(24).required(),
+    noteId: Joi.string()
+      .required()
+      .custom((value, helpers) => {
+        if (!isValidObjectId(value)) {
+          return helpers.error('any.invalid');
+        }
+        return value;
+      }),
   }),
   [Segments.BODY]: Joi.object({
     title: Joi.string().min(1),
