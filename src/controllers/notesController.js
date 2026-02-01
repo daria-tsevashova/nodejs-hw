@@ -1,4 +1,4 @@
-import Note from '../models/note.js';
+import { Note } from '../models/note.js';
 import createHttpError from 'http-errors';
 
 export const getAllNotes = async (req, res) => {
@@ -19,7 +19,7 @@ export const getAllNotes = async (req, res) => {
 
   // Виконуємо одразу два запити паралельно
   const [totalNotes, notes] = await Promise.all([
-    Note.find(filter).countDocuments(),
+    Note.countDocuments(filter),
     Note.find(filter).skip(skip).limit(perPage),
   ]);
 
@@ -30,33 +30,6 @@ export const getAllNotes = async (req, res) => {
     page: Number(page),
     perPage: Number(perPage),
     totalNotes,
-    totalPages,
-    notes,
-  });
-};
-
-export const getNotes = async (req, res) => {
-  // Отримуємо пара метри пагінації
-  const { page = 1, perPage = 12 } = req.query;
-
-  const skip = (page - 1) * perPage;
-
-  // Створюємо базовий запит до колекції
-  const notesQuery = Note.find();
-
-  // Виконуємо одразу два запити паралельно
-  const [totalItems, notes] = await Promise.all([
-    notesQuery.clone().countDocuments(),
-    notesQuery.skip(skip).limit(perPage),
-  ]);
-
-  // Обчислюємо загальну кількість «сторінок»
-  const totalPages = Math.ceil(totalItems / perPage);
-
-  res.status(200).json({
-    page,
-    perPage,
-    totalItems,
     totalPages,
     notes,
   });
