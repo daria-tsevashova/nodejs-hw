@@ -9,6 +9,9 @@ import { notFoundHandler } from './middleware/notFoundHandler.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 import notesRoutes from './routes/notesRoutes.js';
+import authRoutes from './routes/authRoutes.js';
+
+import cookieParser from 'cookie-parser';
 
 const app = express();
 const PORT = process.env.PORT ?? 3000;
@@ -17,10 +20,12 @@ const PORT = process.env.PORT ?? 3000;
 app.use(logger);
 app.use(express.json({ limit: '10mb' }));
 app.use(cors());
+app.use(cookieParser());
 
 // Маршрути
 // підключаємо групу маршрутів для нотаток
 app.use(notesRoutes);
+app.use(authRoutes);
 
 app.get('/test-error', () => {
   throw new Error('Simulated server error');

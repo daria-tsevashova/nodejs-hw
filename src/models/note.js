@@ -18,10 +18,13 @@ const noteSchema = new Schema(
       enum: TAGS,
       default: 'Todo',
     },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
   },
-  {
-    timestamps: true,
-  },
+  { timestamps: true },
 );
 
 // Створюємо текстовий індекс для пошуку по title та content

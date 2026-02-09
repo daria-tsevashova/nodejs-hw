@@ -2,7 +2,7 @@ import { Note } from '../models/note.js';
 import createHttpError from 'http-errors';
 
 export const getAllNotes = async (req, res) => {
-  const { tag, search, page = 1, perPage = 10 } = req.query;
+  const { tag, search, page = 1, perPage = 12 } = req.query;
   const filter = {};
 
   // Фільтрування за тегом
@@ -36,17 +36,27 @@ export const getAllNotes = async (req, res) => {
 };
 
 export const createNote = async (req, res) => {
-  const note = await Note.create(req.body);
-  res.status(201).json(note);
+  try {
+    const note = await Note.create({
+      ...req.body,
+      userId: req.user._id,
+    });
+
+    res.status(201).json(note);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
 };
 
 export const getNoteById = async (req, res, next) => {
   const { noteId } = req.params;
-  const note = await Note.findById(noteId);
+  const note = await Note.findOne({
+    _id: noteId,
+    userId: req.user._id,
+  });
 
   if (!note) {
-    next(createHttpError(404, 'Note not found'));
-    return;
+    throw createHttpError(404, 'Note not found');
   }
 
   res.status(200).json(note);
@@ -56,28 +66,27 @@ export const deleteNote = async (req, res, next) => {
   const { noteId } = req.params;
   const note = await Note.findOneAndDelete({
     _id: noteId,
+    userId: req.user._id,
   });
 
   if (!note) {
-    next(createHttpError(404, 'Note not found'));
-    return;
+    throw createHttpError(404, 'Note not found');
   }
 
-  res.status(200).json(note);
+  res.status(200).send(note);
 };
 
 export const updateNote = async (req, res, next) => {
   const { noteId } = req.params;
 
   const note = await Note.findOneAndUpdate(
-    { _id: noteId }, // Шукаємо по id
+    { _id: noteId, userId: req.user._id },
     req.body,
-    { new: true }, // повертаємо оновлений документ
+    { new: true },
   );
 
   if (!note) {
-    next(createHttpError(404, 'Note not found'));
-    return;
+    throw createHttpError(404, 'Note not found');
   }
 
   res.status(200).json(note);
