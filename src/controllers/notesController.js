@@ -3,24 +3,29 @@ import createHttpError from 'http-errors';
 
 export const getAllNotes = async (req, res) => {
   const { tag, search, page = 1, perPage = 12 } = req.query;
-  const filter = {};
+
+  // Створюємо базовий запит з обов'язковим фільтром userId
+  let query = Note.find().where('userId').equals(req.user._id);
+  let countQuery = Note.find().where('userId').equals(req.user._id);
 
   // Фільтрування за тегом
   if (tag) {
-    filter.tag = tag;
+    query = query.where('tag').equals(tag);
+    countQuery = countQuery.where('tag').equals(tag);
   }
 
   // Текстовий пошук по title та content
   if (search) {
-    filter.$text = { $search: search };
+    query = query.where('$text').equals({ $search: search });
+    countQuery = countQuery.where('$text').equals({ $search: search });
   }
 
   const skip = (page - 1) * perPage;
 
   // Виконуємо одразу два запити паралельно
   const [totalNotes, notes] = await Promise.all([
-    Note.countDocuments(filter),
-    Note.find(filter).skip(skip).limit(perPage),
+    countQuery.countDocuments(),
+    query.skip(skip).limit(perPage),
   ]);
 
   // Обчислюємо загальну кількість «сторінок»
@@ -36,16 +41,12 @@ export const getAllNotes = async (req, res) => {
 };
 
 export const createNote = async (req, res) => {
-  try {
-    const note = await Note.create({
-      ...req.body,
-      userId: req.user._id,
-    });
+  const note = await Note.create({
+    ...req.body,
+    userId: req.user._id,
+  });
 
-    res.status(201).json(note);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
+  res.status(201).json(note);
 };
 
 export const getNoteById = async (req, res, next) => {
@@ -73,7 +74,7 @@ export const deleteNote = async (req, res, next) => {
     throw createHttpError(404, 'Note not found');
   }
 
-  res.status(200).send(note);
+  res.status(200).json(note);
 };
 
 export const updateNote = async (req, res, next) => {
