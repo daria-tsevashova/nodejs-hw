@@ -10,6 +10,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 
 import notesRoutes from './routes/notesRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import userRoutes from './routes/userRoutes.js';
 
 import cookieParser from 'cookie-parser';
 
@@ -26,6 +27,7 @@ app.use(cookieParser());
 // підключаємо групу маршрутів для нотаток
 app.use(notesRoutes);
 app.use(authRoutes);
+app.use(userRoutes);
 
 app.get('/test-error', () => {
   throw new Error('Simulated server error');
