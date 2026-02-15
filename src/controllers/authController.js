@@ -187,3 +187,7 @@ export const resetPassword = async (req, res) => {
     message: 'Password reset successfully. Please log in again.',
   });
 };
+
+export const updateUserAvatar = async (req, res) => {
+  res.status(200).json({ url: '' });
+};
