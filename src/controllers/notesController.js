@@ -4,28 +4,23 @@ import createHttpError from 'http-errors';
 export const getAllNotes = async (req, res) => {
   const { tag, search, page = 1, perPage = 12 } = req.query;
 
-  // Створюємо базовий запит з обов'язковим фільтром userId
-  let query = Note.find().where('userId').equals(req.user._id);
-  let countQuery = Note.find().where('userId').equals(req.user._id);
+  const filter = {
+    userId: req.user._id,
+  };
 
-  // Фільтрування за тегом
   if (tag) {
-    query = query.where('tag').equals(tag);
-    countQuery = countQuery.where('tag').equals(tag);
+    filter.tag = tag;
   }
 
-  // Текстовий пошук по title та content
   if (search) {
-    query = query.where('$text').equals({ $search: search });
-    countQuery = countQuery.where('$text').equals({ $search: search });
+    filter.$text = { $search: search };
   }
 
   const skip = (page - 1) * perPage;
 
-  // Виконуємо одразу два запити паралельно
   const [totalNotes, notes] = await Promise.all([
-    countQuery.countDocuments(),
-    query.skip(skip).limit(perPage),
+    Note.countDocuments(filter),
+    Note.find(filter).skip(skip).limit(perPage),
   ]);
 
   // Обчислюємо загальну кількість «сторінок»

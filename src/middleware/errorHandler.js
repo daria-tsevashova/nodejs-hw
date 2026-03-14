@@ -1,3 +1,4 @@
+import multer from 'multer';
 import { HttpError } from 'http-errors';
 
 export const errorHandler = (err, req, res, next) => {
@@ -9,6 +10,16 @@ export const errorHandler = (err, req, res, next) => {
       message: err.message || err.name,
     });
   }
+
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({
+      message:
+        err.code === 'LIMIT_FILE_SIZE'
+          ? 'File is too large. Max size is 2MB.'
+          : err.message,
+    });
+  }
+
   const isProd = process.env.NODE_ENV === 'production';
 
   // Усі інші помилки — як внутрішні

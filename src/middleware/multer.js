@@ -1,5 +1,6 @@
 // src/middleware/multer.js
 
+import createHttpError from 'http-errors';
 import multer from 'multer';
 
 export const upload = multer({
@@ -11,7 +12,13 @@ export const upload = multer({
     if (file.mimetype?.startsWith('image/')) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only image files are allowed.'), false);
+      cb(
+        createHttpError(
+          400,
+          'Invalid file type. Only image files are allowed.',
+        ),
+        false,
+      );
     }
   },
 });

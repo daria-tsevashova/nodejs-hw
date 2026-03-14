@@ -24,21 +24,24 @@ const userSchema = new Schema(
       default: 'https://ac.goit.global/fullstack/react/default-avatar.jpg',
     },
   },
-  { timestamps: true, versionKey: false },
+  {
+    timestamps: true,
+    versionKey: false,
+    toJSON: {
+      transform: (_doc, ret) => {
+        ret.id = ret._id.toString();
+        delete ret._id;
+        delete ret.password;
+        return ret;
+      },
+    },
+  },
 );
 
-userSchema.pre('save', function (next) {
+userSchema.pre('save', async function () {
   if (!this.username) {
     this.username = this.email;
   }
-  next();
 });
-
-// Перевизначаємо метод toJSON
-userSchema.methods.toJSON = function () {
-  const obj = this.toObject();
-  delete obj.password;
-  return obj;
-};
 
 export const User = model('User', userSchema);

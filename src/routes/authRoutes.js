@@ -6,6 +6,7 @@ import {
   registerUser,
   loginUser,
   logoutUser,
+  getCurrentSessionUser,
   refreshUserSession,
   requestResetEmail,
   resetPassword,
@@ -22,6 +23,7 @@ const router = Router();
 router.post('/auth/register', celebrate(registerUserSchema), registerUser);
 router.post('/auth/login', celebrate(loginUserSchema), loginUser);
 router.post('/auth/logout', logoutUser);
+router.get('/auth/session', getCurrentSessionUser);
 router.post('/auth/refresh', refreshUserSession);
 
 router.post(
