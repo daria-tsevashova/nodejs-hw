@@ -17,7 +17,10 @@ router.patch('/users/me', authenticate, updateCurrentUser);
 router.patch(
   '/users/me/avatar',
   authenticate,
-  upload.single('avatar'),
+  upload.fields([
+    { name: 'avatar', maxCount: 1 },
+    { name: 'file', maxCount: 1 },
+  ]),
   updateUserAvatar,
 );
 

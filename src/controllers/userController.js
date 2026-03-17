@@ -28,12 +28,14 @@ export const updateCurrentUser = async (req, res) => {
   res.status(200).json(user);
 };
 
-export const updateUserAvatar = async (req, res, next) => {
-  if (!req.file) {
-    throw createHttpError(400, 'No file');
+export const updateUserAvatar = async (req, res) => {
+  const avatarFile = req.file ?? req.files?.avatar?.[0] ?? req.files?.file?.[0];
+
+  if (!avatarFile) {
+    throw createHttpError(400, 'Avatar file is required');
   }
 
-  const result = await saveFileToCloudinary(req.file.buffer, req.user.id);
+  const result = await saveFileToCloudinary(avatarFile.buffer, req.user.id);
 
   const user = await User.findByIdAndUpdate(
     req.user._id,
