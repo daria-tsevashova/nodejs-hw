@@ -11,13 +11,85 @@ import { sendEmail } from '../utils/sendMail.js';
 import handlebars from 'handlebars';
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const getJwtSecret = () => {
+  if (!process.env.JWT_SECRET) {
+    throw createHttpError(500, 'JWT secret is not configured');
+  }
+
+  return process.env.JWT_SECRET;
+};
+
+const clearSessionCookies = (res) => {
+  res.clearCookie('sessionId');
+  res.clearCookie('accessToken');
+  res.clearCookie('refreshToken');
+};
+
+const getUserOrThrow = async (userId) => {
+  const user = await User.findById(userId);
+
+  if (!user) {
+    throw createHttpError(401, 'User not found');
+  }
+
+  return user;
+};
+
+const getSessionByRefreshToken = async (cookies) => {
+  if (!cookies.refreshToken) {
+    return null;
+  }
+
+  if (cookies.sessionId) {
+    const session = await Session.findOne({
+      _id: cookies.sessionId,
+      refreshToken: cookies.refreshToken,
+    });
+
+    if (session) {
+      return session;
+    }
+  }
+
+  return Session.findOne({ refreshToken: cookies.refreshToken });
+};
+
+const refreshSession = async (req, res) => {
+  const session = await getSessionByRefreshToken(req.cookies);
+
+  if (!session) {
+    clearSessionCookies(res);
+    throw createHttpError(401, 'Session not found');
+  }
+
+  const isSessionTokenExpired =
+    new Date() > new Date(session.refreshTokenValidUntil);
+
+  if (isSessionTokenExpired) {
+    await Session.deleteOne({ _id: session._id });
+    clearSessionCookies(res);
+    throw createHttpError(401, 'Session token expired');
+  }
+
+  await Session.deleteOne({ _id: session._id });
+
+  const newSession = await createSession(session.userId);
+  setSessionCookies(res, newSession);
+
+  return getUserOrThrow(session.userId);
+};
 
 export const registerUser = async (req, res) => {
   const { email, password } = req.body;
 
   const existingUser = await User.findOne({ email });
   if (existingUser) {
-    throw createHttpError(400, 'Email in use');
+    throw createHttpError(409, 'Email in use');
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
@@ -59,56 +131,52 @@ export const loginUser = async (req, res) => {
 };
 
 export const logoutUser = async (req, res) => {
-  const { sessionId } = req.cookies;
+  const { sessionId, refreshToken, accessToken } = req.cookies;
 
   if (sessionId) {
     await Session.deleteOne({ _id: sessionId });
+  } else if (refreshToken) {
+    await Session.deleteOne({ refreshToken });
+  } else if (accessToken) {
+    await Session.deleteOne({ accessToken });
   }
 
-  res.clearCookie('sessionId');
-  res.clearCookie('accessToken');
-  res.clearCookie('refreshToken');
+  clearSessionCookies(res);
 
   res.status(204).send();
 };
 
+export const getCurrentSessionUser = async (req, res) => {
+  if (req.cookies.accessToken) {
+    const session = await Session.findOne({
+      accessToken: req.cookies.accessToken,
+    });
+
+    if (session) {
+      const isAccessTokenExpired =
+        new Date() > new Date(session.accessTokenValidUntil);
+
+      if (!isAccessTokenExpired) {
+        const user = await getUserOrThrow(session.userId);
+        return res.status(200).json(user);
+      }
+    }
+  }
+
+  const user = await refreshSession(req, res);
+
+  res.status(200).json(user);
+};
+
 export const refreshUserSession = async (req, res) => {
-  // 1. Знаходимо поточну сесію за id сесії та рефреш токеном
-  const session = await Session.findOne({
-    _id: req.cookies.sessionId,
-    refreshToken: req.cookies.refreshToken,
-  });
-
-  // 2. Якщо такої сесії нема, повертаємо помилку
-  if (!session) {
-    throw createHttpError(401, 'Session not found');
-  }
-
-  // 3. Якщо сесія існує, перевіряємо валідність рефреш токена
-  const isSessionTokenExpired =
-    new Date() > new Date(session.refreshTokenValidUntil);
-
-  // Якщо термін дії рефреш токена вийшов, повертаємо помилку
-  if (isSessionTokenExpired) {
-    throw createHttpError(401, 'Session token expired');
-  }
-
-  // 4. Якщо всі перевірки пройшли добре, видаляємо поточну сесію
-  await Session.deleteOne({
-    _id: req.cookies.sessionId,
-    refreshToken: req.cookies.refreshToken,
-  });
-
-  // 5. Створюємо нову сесію та додаємо кукі
-  const newSession = await createSession(session.userId);
-  setSessionCookies(res, newSession);
+  await refreshSession(req, res);
 
   res.status(200).json({
     message: 'Session refreshed',
   });
 };
 
-export const requestResetEmail = async (req, res, next) => {
+export const requestResetEmail = async (req, res) => {
   const { email } = req.body;
 
   const user = await User.findOne({ email });
@@ -118,14 +186,17 @@ export const requestResetEmail = async (req, res, next) => {
     });
   }
 
-  const resetToken = jwt.sign(
-    { sub: user._id, email },
-    process.env.JWT_SECRET,
-    { expiresIn: '15m' },
-  );
+  const resetToken = jwt.sign({ sub: user._id, email }, getJwtSecret(), {
+    expiresIn: '15m',
+  });
 
-  // 1. Формуємо шлях до шаблона
-  const templatePath = path.resolve('src/templates/reset-password-email.html');
+  // 1. Формуємо шлях до шаблона незалежно від cwd процесу
+  const templatePath = path.join(
+    __dirname,
+    '..',
+    'templates',
+    'reset-password-email.html',
+  );
   // 2. Читаємо шаблон
   const templateSource = await fs.readFile(templatePath, 'utf-8');
   // 3. Готуємо шаблон до заповнення
@@ -162,7 +233,7 @@ export const resetPassword = async (req, res) => {
   // 1. Перевіряємо/декодуємо токен
   let payload;
   try {
-    payload = jwt.verify(token, process.env.JWT_SECRET);
+    payload = jwt.verify(token, getJwtSecret());
   } catch {
     // Повертаємо помилку якщо проблема при декодуванні
     throw createHttpError(401, 'Invalid or expired token');
@@ -186,8 +257,4 @@ export const resetPassword = async (req, res) => {
   res.status(200).json({
     message: 'Password reset successfully. Please log in again.',
   });
-};
-
-export const updateUserAvatar = async (req, res) => {
-  res.status(200).json({ url: '' });
 };

@@ -24,7 +24,17 @@ const noteSchema = new Schema(
       required: true,
     },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+    versionKey: false,
+    toJSON: {
+      transform: (_doc, ret) => {
+        ret.id = ret._id.toString();
+        delete ret._id;
+        return ret;
+      },
+    },
+  },
 );
 
 // Створюємо текстовий індекс для пошуку по title та content
