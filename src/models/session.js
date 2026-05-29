@@ -13,4 +13,7 @@ const sessionSchema = new Schema(
   { timestamps: true, versionKey: false },
 );
 
+// Індекс для швидкого пошуку сесій по користувачу
+sessionSchema.index({ userId: 1 });
+
 export const Session = model('Session', sessionSchema);
