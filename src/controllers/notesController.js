@@ -2,7 +2,9 @@ import { Note } from '../models/note.js';
 import createHttpError from 'http-errors';
 
 export const getAllNotes = async (req, res) => {
-  const { tag, search, page = 1, perPage = 12 } = req.query;
+  const page = Number(req.query.page) || 1;
+  const perPage = Number(req.query.perPage) || 12;
+  const { tag, search } = req.query;
 
   const filter = {
     userId: req.user._id,
@@ -27,8 +29,8 @@ export const getAllNotes = async (req, res) => {
   const totalPages = Math.ceil(totalNotes / perPage);
 
   res.status(200).json({
-    page: Number(page),
-    perPage: Number(perPage),
+    page,
+    perPage,
     totalNotes,
     totalPages,
     notes,

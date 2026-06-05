@@ -29,7 +29,7 @@ export const updateCurrentUser = async (req, res) => {
 };
 
 export const updateUserAvatar = async (req, res) => {
-  const avatarFile = req.file ?? req.files?.avatar?.[0] ?? req.files?.file?.[0];
+  const avatarFile = req.file || req.files?.avatar?.[0] || req.files?.file?.[0];
 
   if (!avatarFile) {
     throw createHttpError(400, 'Avatar file is required');

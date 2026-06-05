@@ -41,7 +41,7 @@ const getUserOrThrow = async (userId) => {
 };
 
 const getSessionByRefreshToken = async (cookies) => {
-  if (!cookies.refreshToken) {
+  if (!cookies?.refreshToken) {
     return null;
   }
 
@@ -147,9 +147,11 @@ export const logoutUser = async (req, res) => {
 };
 
 export const getCurrentSessionUser = async (req, res) => {
-  if (req.cookies.accessToken) {
+  const cookies = req.cookies || {};
+
+  if (cookies.accessToken) {
     const session = await Session.findOne({
-      accessToken: req.cookies.accessToken,
+      accessToken: cookies.accessToken,
     });
 
     if (session) {
@@ -190,18 +192,17 @@ export const requestResetEmail = async (req, res) => {
     expiresIn: '15m',
   });
 
-  // 1. Формуємо шлях до шаблона незалежно від cwd процесу
+  // Формуємо шлях до шаблона незалежно від cwd процесу
   const templatePath = path.join(
     __dirname,
     '..',
     'templates',
     'reset-password-email.html',
   );
-  // 2. Читаємо шаблон
+
   const templateSource = await fs.readFile(templatePath, 'utf-8');
-  // 3. Готуємо шаблон до заповнення
   const template = handlebars.compile(templateSource);
-  // 4. Формуємо із шаблона HTML документ з динамічними даними
+
   const html = template({
     name: user.username,
     link: `${process.env.FRONTEND_DOMAIN}/reset-password?token=${resetToken}`,
@@ -212,7 +213,6 @@ export const requestResetEmail = async (req, res) => {
       from: process.env.SMTP_FROM,
       to: email,
       subject: 'Reset your password',
-      // 5. Передаємо HTML у функцію надписання пошти
       html,
     });
   } catch {
