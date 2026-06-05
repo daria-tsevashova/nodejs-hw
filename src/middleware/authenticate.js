@@ -6,13 +6,25 @@ export const authenticate = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   const cookieToken = req.cookies.accessToken;
 
-  // Якщо є Bearer токен і він збігається з нашим секретним токеном (якщо ви його використовуєте для тестів)
-  // Або просто шукаємо сесію за токеном з заголовка або куків
-  const token = authHeader?.startsWith('Bearer ') 
-    ? authHeader.split(' ')[1] 
-    : cookieToken;
+  let token = null;
 
-  if (!token || token === 'null' || token === 'undefined') {
+  // 1. Намагаємося взяти токен з заголовка
+  if (authHeader?.startsWith('Bearer ')) {
+    const candidate = authHeader.split(' ')[1]?.trim();
+    if (candidate && candidate !== 'null' && candidate !== 'undefined') {
+      token = candidate;
+    }
+  }
+
+  // 2. Якщо в заголовку порожньо або сміття — перевіряємо куки
+  if (!token && cookieToken) {
+    const candidate = cookieToken.trim();
+    if (candidate && candidate !== 'null' && candidate !== 'undefined') {
+      token = candidate;
+    }
+  }
+
+  if (!token || token === '') {
     return next(createHttpError(401, 'Missing access token'));
   }
 
