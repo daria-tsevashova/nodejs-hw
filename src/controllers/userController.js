@@ -5,7 +5,13 @@ import { User } from '../models/user.js';
 import { saveFileToCloudinary } from '../utils/saveFileToCloudinary.js';
 
 export const getCurrentUser = async (req, res) => {
-  res.status(200).json(req.user);
+  // Перетворюємо в об'єкт та видаляємо пароль про всяк випадок, 
+  // якщо він не був видалений у middleware
+  const user = req.user.toObject ? req.user.toObject() : req.user;
+  if (user.password) {
+    delete user.password;
+  }
+  res.status(200).json(user);
 };
 
 export const updateCurrentUser = async (req, res) => {

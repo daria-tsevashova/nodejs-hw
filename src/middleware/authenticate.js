@@ -3,14 +3,21 @@ import { Session } from '../models/session.js';
 import { User } from '../models/user.js';
 
 export const authenticate = async (req, res, next) => {
-  // 1. Перевіряємо наявність accessToken
-  if (!req.cookies.accessToken) {
+  const authHeader = req.headers.authorization;
+  const cookieToken = req.cookies.accessToken;
+
+  // Якщо є Bearer токен і він збігається з нашим секретним токеном (якщо ви його використовуєте для тестів)
+  // Або просто шукаємо сесію за токеном з заголовка або куків
+  const token = authHeader?.startsWith('Bearer ') 
+    ? authHeader.split(' ')[1] 
+    : cookieToken;
+
+  if (!token) {
     throw createHttpError(401, 'Missing access token');
   }
 
-  // 2. Якщо access токен існує, шукаємо сесію
   const session = await Session.findOne({
-    accessToken: req.cookies.accessToken,
+    accessToken: token,
   });
 
   // 3. Якщо такої сесії нема, повертаємо помилку

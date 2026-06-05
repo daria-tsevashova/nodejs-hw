@@ -31,6 +31,10 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(cookieParser());
 
+app.get('/', (_req, res) => {
+  res.status(200).json({ message: 'NoteHub API is running' });
+});
+
 app.get('/openapi.json', (_req, res) => {
   res.status(200).json(openApiSpec);
 });
