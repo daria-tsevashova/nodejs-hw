@@ -19,7 +19,7 @@ export const updateCurrentUser = async (req, res) => {
     req.user._id,
     { username },
     { new: true, runValidators: true },
-  );
+  ).select('-password');
 
   if (!user) {
     throw createHttpError(404, 'User not found');
@@ -41,7 +41,7 @@ export const updateUserAvatar = async (req, res) => {
     req.user._id,
     { avatar: result.secure_url },
     { new: true },
-  );
+  ).select('-password');
 
   if (!user) {
     throw createHttpError(404, 'User not found');
