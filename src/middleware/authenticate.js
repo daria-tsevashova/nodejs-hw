@@ -12,8 +12,8 @@ export const authenticate = async (req, res, next) => {
     ? authHeader.split(' ')[1] 
     : cookieToken;
 
-  if (!token) {
-    throw createHttpError(401, 'Missing access token');
+  if (!token || token === 'null' || token === 'undefined') {
+    return next(createHttpError(401, 'Missing access token'));
   }
 
   const session = await Session.findOne({
@@ -22,7 +22,7 @@ export const authenticate = async (req, res, next) => {
 
   // 3. Якщо такої сесії нема, повертаємо помилку
   if (!session) {
-    throw createHttpError(401, 'Session not found');
+    return next(createHttpError(401, 'Session not found'));
   }
 
   // 4. Перевіряємо термін дії access токена
@@ -30,7 +30,7 @@ export const authenticate = async (req, res, next) => {
     new Date() > new Date(session.accessTokenValidUntil);
 
   if (isAccessTokenExpired) {
-    throw createHttpError(401, 'Access token expired');
+    return next(createHttpError(401, 'Access token expired'));
   }
 
   // 5. Якщо з токеном все добре і сесія існує,
@@ -39,7 +39,7 @@ export const authenticate = async (req, res, next) => {
 
   // 6. Якщо користувача не знайдено
   if (!user) {
-    throw createHttpError(401);
+    return next(createHttpError(401, 'User not found'));
   }
 
   // 7. Якщо користувач існує, додаємо його до запиту
