@@ -31,7 +31,7 @@ const clearSessionCookies = (res) => {
 };
 
 const getUserOrThrow = async (userId) => {
-  const user = await User.findById(userId);
+  const user = await User.findById(userId).select('-password');
 
   if (!user) {
     throw createHttpError(401, 'User not found');
@@ -41,7 +41,7 @@ const getUserOrThrow = async (userId) => {
 };
 
 const getSessionByRefreshToken = async (cookies) => {
-  if (!cookies.refreshToken) {
+  if (!cookies?.refreshToken) {
     return null;
   }
 
@@ -60,7 +60,8 @@ const getSessionByRefreshToken = async (cookies) => {
 };
 
 const refreshSession = async (req, res) => {
-  const session = await getSessionByRefreshToken(req.cookies);
+  const cookies = req.cookies || {};
+  const session = await getSessionByRefreshToken(cookies);
 
   if (!session) {
     clearSessionCookies(res);
@@ -99,12 +100,15 @@ export const registerUser = async (req, res) => {
     password: hashedPassword,
   });
 
+  const userResponse = newUser.toObject();
+  delete userResponse.password;
+
   const newSession = await createSession(newUser._id);
 
   // 2. Викликаємо, передаємо об'єкт відповіді та сесію
   setSessionCookies(res, newSession);
 
-  res.status(201).json(newUser);
+  res.status(201).json(userResponse);
 };
 
 export const loginUser = async (req, res) => {
@@ -120,6 +124,9 @@ export const loginUser = async (req, res) => {
     throw createHttpError(401, 'Invalid credentials');
   }
 
+  const userResponse = user.toObject();
+  delete userResponse.password;
+
   await Session.deleteOne({ userId: user._id });
 
   const newSession = await createSession(user._id);
@@ -127,11 +134,13 @@ export const loginUser = async (req, res) => {
   // 3. Викликаємо, передаємо об'єкт відповіді та сесію
   setSessionCookies(res, newSession);
 
-  res.status(200).json(user);
+  res.status(200).json(userResponse);
 };
 
 export const logoutUser = async (req, res) => {
-  const { sessionId, refreshToken, accessToken } = req.cookies;
+  // Додаємо захист на випадок, якщо req.cookies відсутній
+  const cookies = req.cookies || {};
+  const { sessionId, refreshToken, accessToken } = cookies;
 
   if (sessionId) {
     await Session.deleteOne({ _id: sessionId });
@@ -147,25 +156,36 @@ export const logoutUser = async (req, res) => {
 };
 
 export const getCurrentSessionUser = async (req, res) => {
-  if (req.cookies.accessToken) {
-    const session = await Session.findOne({
-      accessToken: req.cookies.accessToken,
-    });
+  const cookies = req.cookies || {};
 
-    if (session) {
-      const isAccessTokenExpired =
-        new Date() > new Date(session.accessTokenValidUntil);
+  try {
+    if (cookies.accessToken) {
+      const session = await Session.findOne({
+        accessToken: cookies.accessToken,
+      });
 
-      if (!isAccessTokenExpired) {
-        const user = await getUserOrThrow(session.userId);
-        return res.status(200).json(user);
+      if (session) {
+        const isAccessTokenExpired =
+          new Date() > new Date(session.accessTokenValidUntil);
+
+        if (!isAccessTokenExpired) {
+          const user = await getUserOrThrow(session.userId);
+          return res.status(200).json(user);
+        }
       }
     }
+
+    const user = await refreshSession(req, res);
+    res.status(200).json(user);
+  } catch (error) {
+    // Якщо сесія не знайдена або прострочена, повертаємо 401 замість того, щоб валити сервер
+    if (error.status === 401) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+    // Для інших помилок прокидаємо далі
+    throw error;
   }
 
-  const user = await refreshSession(req, res);
-
-  res.status(200).json(user);
 };
 
 export const refreshUserSession = async (req, res) => {
@@ -190,18 +210,17 @@ export const requestResetEmail = async (req, res) => {
     expiresIn: '15m',
   });
 
-  // 1. Формуємо шлях до шаблона незалежно від cwd процесу
+  // Формуємо шлях до шаблона незалежно від cwd процесу
   const templatePath = path.join(
-    __dirname,
-    '..',
+    process.cwd(),
+    'src',
     'templates',
     'reset-password-email.html',
   );
-  // 2. Читаємо шаблон
+
   const templateSource = await fs.readFile(templatePath, 'utf-8');
-  // 3. Готуємо шаблон до заповнення
   const template = handlebars.compile(templateSource);
-  // 4. Формуємо із шаблона HTML документ з динамічними даними
+
   const html = template({
     name: user.username,
     link: `${process.env.FRONTEND_DOMAIN}/reset-password?token=${resetToken}`,
@@ -212,7 +231,6 @@ export const requestResetEmail = async (req, res) => {
       from: process.env.SMTP_FROM,
       to: email,
       subject: 'Reset your password',
-      // 5. Передаємо HTML у функцію надписання пошти
       html,
     });
   } catch {

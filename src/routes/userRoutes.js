@@ -1,6 +1,7 @@
 // src/routes/userRoutes.js
 
 import { Router } from 'express';
+import { celebrate } from 'celebrate';
 import { authenticate } from '../middleware/authenticate.js';
 import {
   getCurrentUser,
@@ -8,11 +9,17 @@ import {
   updateUserAvatar,
 } from '../controllers/userController.js';
 import { upload } from '../middleware/multer.js';
+import { updateCurrentUserSchema } from '../validations/userValidation.js';
 
 const router = Router();
 
-router.get('/users/me', authenticate, getCurrentUser);
-router.patch('/users/me', authenticate, updateCurrentUser);
+router.get(['/users/me', '/api/users/me'], authenticate, getCurrentUser);
+router.patch(
+  ['/users/me', '/api/users/me'],
+  authenticate,
+  celebrate(updateCurrentUserSchema),
+  updateCurrentUser,
+);
 
 router.patch(
   '/users/me/avatar',
