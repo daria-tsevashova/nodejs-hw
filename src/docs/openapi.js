@@ -33,9 +33,9 @@ export const openApiSpec = {
           username: { type: 'string', example: 'user@example.com' },
           avatar: {
             type: 'string',
-            format: 'uri',
+            nullable: true,
             example:
-              'https://res.cloudinary.com/demo/image/upload/v1/avatar.jpg',
+              'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...',
           },
           createdAt: { type: 'string', format: 'date-time' },
           updatedAt: { type: 'string', format: 'date-time' },
@@ -298,9 +298,14 @@ export const openApiSpec = {
             'application/json': {
               schema: {
                 type: 'object',
-                required: ['username'],
                 properties: {
                   username: { type: 'string', example: 'new_name' },
+                  avatar: {
+                    type: 'string',
+                    description: 'Supports data URL or http(s) URL',
+                    example:
+                      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...',
+                  },
                 },
               },
             },
